@@ -1,6 +1,6 @@
  EnhancedResCNN（增强型残差卷积神经网络）模型，融合了 卷积、残差块以及 TransformerBlock（自注意力机制）。让我们按顺序对各层功能进行简单介绍。
 1. 输入层（fc1）
-  - Linear(in_features=4, out_features=128): 首先将输入（原始编码数据）从维度 4 投影到一个 128 维的向量空间。
+  - Linear(in_features=4, out_features=128): 首先将输入（原始编码数据）从维度 16 投影到一个 128 维的向量空间。
   - BatchNorm1d(128): 对 128 维向量做批标准化（Batch Normalization），加速收敛并稳定训练。
   - ReLU(inplace=True): 使用 ReLU 作为激活函数。
   - Dropout(p=0.1): 在训练时随机丢弃 10% 的神经元输出，防止过拟合。
