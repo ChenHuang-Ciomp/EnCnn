@@ -12,6 +12,7 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, random_split
 from torchvision import datasets
 import torchvision.transforms as transforms
+from sklearn.preprocessing import MinMaxScaler
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
 from torch.utils.data import Dataset, DataLoader
@@ -72,11 +73,19 @@ class SpectralResNet(nn.Module):
         # 输出 G_matrix
         x = self.fc(x)
         return x
+    
+
 # 数据增强：扩增样本数量，并进行标准化
 class SpectralDataset(Dataset):
     def __init__(self, sample_path, g_matrix_path, augment_factor=10):
         data = sio.loadmat(sample_path)['sample']  # (B, 100, 100)
         labels = sio.loadmat(g_matrix_path)['G_matrix']  # (B, 100)
+        
+        
+        
+        # 归一化数据
+        #self.data = self.normalize_data(data)  # 对每个样本做归一化 # (B, 1, 100, 100)
+        #self.labels = self.normalize_labels(labels)  # 对标签做归一化 # (B, 100)
         
         # 数据标准化
         self.scaler_x = StandardScaler()
@@ -97,7 +106,7 @@ class SpectralDataset(Dataset):
         
         self.data = torch.cat(augmented_data, dim=0)
         self.labels = torch.cat(augmented_labels, dim=0)
-    
+   
     def __len__(self):
         return len(self.data)
     
@@ -123,10 +132,21 @@ model = SpectralResNet().to(device)
 # 定义损失函数和优化器
 criterion = nn.MSELoss()
 optimizer = optim.Adam(model.parameters(), lr=1e-3)
+#optimizer = optim.AdamW(model.parameters(), lr=1e-3, weight_decay=1e-5)  # 降低学习率
+
+# 学习率调度器
+#scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=10)
+
+
+
 
 # 用于记录损失
 train_losses = []
 val_losses = []
+
+# 最佳验证集损失初始化为一个很大的值
+best_val_loss = float('inf')
+best_model_wts = None
 
 # 训练和验证过程
 num_epochs = 1000
@@ -161,11 +181,18 @@ for epoch in range(num_epochs):
             running_val_loss += loss.item()
     # 记录验证损失
     val_losses.append(running_val_loss / len(val_loader))
+    
+    
+    # 如果当前的验证损失比最小验证损失还小，保存模型
+    if val_losses[-1] < best_val_loss:
+        best_val_loss = val_losses[-1]
+        best_model_wts = model.state_dict()  # 保存当前最佳模型的权重
+        print('保存最佳模型')
 
     print(f"Epoch [{epoch+1}/{num_epochs}], Train Loss: {train_losses[-1]:.6f}, Validation Loss: {val_losses[-1]:.6f}")
 
 # 保存训练好的模型
-torch.save(model.state_dict(), 'spectral_resnet.pth')
+torch.save(best_model_wts, 'spectral_resnet.pth')
 
 # 绘制损失曲线
 plt.figure(figsize=(10, 6))
